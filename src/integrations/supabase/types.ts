@@ -14,7 +14,206 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          visitor_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          visitor_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      emails: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          purpose: string
+          recipient: string
+          tone: string
+          visitor_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          purpose?: string
+          recipient?: string
+          tone?: string
+          visitor_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          purpose?: string
+          recipient?: string
+          tone?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      note_summaries: {
+        Row: {
+          actions: Json
+          concepts: Json
+          created_at: string
+          id: string
+          source: string
+          summary: string
+          title: string
+          visitor_id: string
+        }
+        Insert: {
+          actions?: Json
+          concepts?: Json
+          created_at?: string
+          id?: string
+          source?: string
+          summary?: string
+          title?: string
+          visitor_id: string
+        }
+        Update: {
+          actions?: Json
+          concepts?: Json
+          created_at?: string
+          id?: string
+          source?: string
+          summary?: string
+          title?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      research_items: {
+        Row: {
+          created_at: string
+          id: string
+          points: Json
+          questions: Json
+          summary: string
+          topic: string
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points?: Json
+          questions?: Json
+          summary?: string
+          topic?: string
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points?: Json
+          questions?: Json
+          summary?: string
+          topic?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      study_plans: {
+        Row: {
+          created_at: string
+          days: Json
+          hours_per_day: number
+          id: string
+          input_text: string
+          overview: string
+          total_hours: number
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          days?: Json
+          hours_per_day?: number
+          id?: string
+          input_text?: string
+          overview?: string
+          total_hours?: number
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: Json
+          hours_per_day?: number
+          id?: string
+          input_text?: string
+          overview?: string
+          total_hours?: number
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      study_tasks: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          detail: string
+          due_at: string | null
+          id: string
+          kind: string
+          plan_id: string | null
+          priority: string
+          title: string
+          visitor_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          detail?: string
+          due_at?: string | null
+          id?: string
+          kind?: string
+          plan_id?: string | null
+          priority?: string
+          title: string
+          visitor_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          detail?: string
+          due_at?: string | null
+          id?: string
+          kind?: string
+          plan_id?: string | null
+          priority?: string
+          title?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_tasks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
