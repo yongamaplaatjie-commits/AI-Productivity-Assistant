@@ -4,6 +4,17 @@ export const ACCEPT_ATTR = ".txt,.pdf,.docx,.jpg,.jpeg,.png";
 
 export type AttachmentKind = "image" | "document";
 
+/** Attachments are capped at 10MB each. */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+export function isTooLarge(file: File): boolean {
+  return file.size > MAX_FILE_BYTES;
+}
+
+export function formatBytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export function classifyFile(file: File): AttachmentKind | null {
   const name = file.name.toLowerCase();
   if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")) return "image";

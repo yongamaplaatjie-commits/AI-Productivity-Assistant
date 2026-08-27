@@ -121,3 +121,91 @@ export function EditableOutput({
     </div>
   );
 }
+
+export function EmptyState({
+  title,
+  text,
+  icon,
+}: {
+  title: string;
+  text: string;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8 text-center">
+      {icon && (
+        <span className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+          {icon}
+        </span>
+      )}
+      <p className="font-medium">{title}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+export function HistoryPanel({
+  title,
+  loading,
+  isEmpty,
+  emptyTitle,
+  emptyText,
+  children,
+}: {
+  title: string;
+  loading: boolean;
+  isEmpty: boolean;
+  emptyTitle: string;
+  emptyText: string;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="mt-10">
+      <h2 className="mb-3 font-display text-lg font-semibold">{title}</h2>
+      {loading ? (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Loading your history...
+        </p>
+      ) : isEmpty ? (
+        <EmptyState title={emptyTitle} text={emptyText} />
+      ) : (
+        <div className="space-y-3">{children}</div>
+      )}
+    </section>
+  );
+}
+
+export function HistoryItem({
+  title,
+  meta,
+  body,
+}: {
+  title: string;
+  meta: string;
+  body: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
+        <span>
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="block text-xs text-muted-foreground">{meta}</span>
+        </span>
+        <span className="text-xs text-primary">{open ? "Hide" : "View"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{body}</p>
+          <div className="mt-3">
+            <CopyButton value={body} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -5,6 +5,17 @@ const visitor = z.string().min(8).max(64);
 
 const strList = z.array(z.string());
 
+const VISITOR_TABLES = [
+  "study_tasks",
+  "study_plans",
+  "emails",
+  "note_summaries",
+  "research_items",
+  "chat_messages",
+] as const;
+
+type VisitorTable = (typeof VISITOR_TABLES)[number];
+
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
@@ -306,7 +317,7 @@ export const getOverview = createServerFn({ method: "POST" })
     const db = await admin();
     const v = data.visitorId;
 
-    const count = async (table: string) => {
+    const count = async (table: VisitorTable) => {
       const { count: c, error } = await db
         .from(table)
         .select("id", { count: "exact", head: true })
@@ -361,15 +372,7 @@ export const clearVisitorData = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ visitorId: visitor }).parse(i))
   .handler(async ({ data }) => {
     const db = await admin();
-    const tables = [
-      "study_tasks",
-      "study_plans",
-      "emails",
-      "note_summaries",
-      "research_items",
-      "chat_messages",
-    ];
-    for (const table of tables) {
+    for (const table of VISITOR_TABLES) {
       const { error } = await db.from(table).delete().eq("visitor_id", data.visitorId);
       fail("Could not delete all of your data", error);
     }
