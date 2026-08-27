@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Mail } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
@@ -8,9 +9,15 @@ import {
   EditableOutput,
   ErrorState,
   GenerateButton,
+  HistoryItem,
+  HistoryPanel,
   ToolHeader,
 } from "@/components/tool-page";
+import { AttachmentField, useAttachments } from "@/components/attachments";
+import { VoiceButton } from "@/components/voice-recorder";
 import { askAi } from "@/lib/ai.functions";
+import { listEmails, saveEmail } from "@/lib/db.functions";
+import { useVisitorId } from "@/lib/visitor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +50,12 @@ const tones = [
 
 function EmailTool() {
   const ask = useServerFn(askAi);
+  const save = useServerFn(saveEmail);
+  const list = useServerFn(listEmails);
+  const visitorId = useVisitorId();
+  const queryClient = useQueryClient();
+  const files = useAttachments();
+
   const [recipient, setRecipient] = useState("");
   const [purpose, setPurpose] = useState("");
   const [details, setDetails] = useState("");
@@ -51,10 +64,19 @@ function EmailTool() {
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
 
+  const history = useQuery({
+    queryKey: ["emails", visitorId],
+    queryFn: () => list({ data: { visitorId } }),
+    enabled: Boolean(visitorId),
+  });
+
   async function generate() {
     setLoading(true);
     setError("");
     try {
+      const context = files.combinedText
+        ? `\n\nAttached material the student shared for context:\n${files.combinedText}`
+        : "";
       const res = await ask({
         data: {
           system:
@@ -62,12 +84,19 @@ function EmailTool() {
           messages: [
             {
               role: "user" as const,
-              content: `Write an academic email.\nTone: ${tone}\nRecipient and context: ${recipient}\nPurpose: ${purpose}\nKey details: ${details}`,
+              content: `Write an academic email.\nTone: ${tone}\nRecipient and context: ${recipient}\nPurpose: ${purpose}\nKey details: ${details}${context}`,
             },
           ],
         },
       });
       setOutput(res.text);
+      if (visitorId) {
+        await save({
+          data: { visitorId, recipient, purpose, tone, content: res.text },
+        });
+        void queryClient.invalidateQueries({ queryKey: ["emails", visitorId] });
+        void queryClient.invalidateQueries({ queryKey: ["overview", visitorId] });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
@@ -119,7 +148,17 @@ function EmailTool() {
             onChange={(e) => setDetails(e.target.value)}
             placeholder="Due Friday, I was ill Monday to Wednesday and have a doctor's note, I've completed the literature review section."
           />
+          <VoiceButton
+            label="Speak your email"
+            onText={(t) => setDetails((prev) => (prev ? `${prev}\n${t}` : t))}
+          />
         </div>
+
+        <AttachmentField
+          state={files}
+          hint="Attach a syllabus page, marked script or screenshot for context. Max 10MB per file."
+        />
+
         <div className="space-y-2">
           <Label>Tone</Label>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -141,7 +180,7 @@ function EmailTool() {
             ))}
           </div>
         </div>
-        <GenerateButton loading={loading} label="Generate email" />
+        <GenerateButton loading={loading} label="Generate email" disabled={files.extracting} />
       </form>
 
       {error && <ErrorState message={error} onRetry={() => void generate()} />}
@@ -151,6 +190,23 @@ function EmailTool() {
           <EditableOutput label="Your email" value={output} onChange={setOutput} rows={16} />
         </div>
       )}
+
+      <HistoryPanel
+        title="Your saved emails"
+        loading={history.isLoading && Boolean(visitorId)}
+        isEmpty={!history.data?.items.length}
+        emptyTitle="Nothing here yet"
+        emptyText="Emails you generate are saved automatically so you can come back to them later."
+      >
+        {history.data?.items.map((item) => (
+          <HistoryItem
+            key={item.id}
+            title={item.purpose || "Untitled email"}
+            meta={`${item.recipient || "No recipient"} · ${item.tone} · ${new Date(item.created_at).toLocaleDateString()}`}
+            body={item.content}
+          />
+        ))}
+      </HistoryPanel>
 
       <Disclaimer>
         Read every email before you send it — make sure the details, dates and tone genuinely
