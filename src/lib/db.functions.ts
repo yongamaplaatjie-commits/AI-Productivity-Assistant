@@ -5,6 +5,17 @@ const visitor = z.string().min(8).max(64);
 
 const strList = z.array(z.string());
 
+const VISITOR_TABLES = [
+  "study_tasks",
+  "study_plans",
+  "emails",
+  "note_summaries",
+  "research_items",
+  "chat_messages",
+] as const;
+
+type VisitorTable = (typeof VISITOR_TABLES)[number];
+
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
