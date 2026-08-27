@@ -306,7 +306,7 @@ export const getOverview = createServerFn({ method: "POST" })
     const db = await admin();
     const v = data.visitorId;
 
-    const count = async (table: string) => {
+    const count = async (table: VisitorTable) => {
       const { count: c, error } = await db
         .from(table)
         .select("id", { count: "exact", head: true })
