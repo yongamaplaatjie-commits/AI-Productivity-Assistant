@@ -372,15 +372,7 @@ export const clearVisitorData = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ visitorId: visitor }).parse(i))
   .handler(async ({ data }) => {
     const db = await admin();
-    const tables = [
-      "study_tasks",
-      "study_plans",
-      "emails",
-      "note_summaries",
-      "research_items",
-      "chat_messages",
-    ];
-    for (const table of tables) {
+    for (const table of VISITOR_TABLES) {
       const { error } = await db.from(table).delete().eq("visitor_id", data.visitorId);
       fail("Could not delete all of your data", error);
     }
