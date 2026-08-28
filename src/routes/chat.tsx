@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MessagesSquare, Send } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Disclaimer, ErrorState, ToolHeader } from "@/components/tool-page";
+import { AttachmentField, useAttachments } from "@/components/attachments";
+import { VoiceButton } from "@/components/voice-recorder";
 import { askAi } from "@/lib/ai.functions";
+import { appendChatMessages, listChatMessages } from "@/lib/db.functions";
+import { useVisitorId } from "@/lib/visitor";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -30,18 +34,24 @@ export const Route = createFileRoute("/chat")({
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+const GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hey! I'm your Study Buddy. Tell me what you're working on — or what's stressing you out — and we'll break it down together.",
+};
+
 const SYSTEM =
   "You are JITA's Study Buddy, a warm, encouraging study partner for university students who may be stressed or stuck. Explain concepts step by step, ask guiding questions, suggest study strategies, and normalize struggle. You help students understand material — you never write final assignment answers, essays or code submissions for them; instead you explain the approach and let them do the work. Keep replies concise and conversational.";
 
 function ChatTool() {
   const ask = useServerFn(askAi);
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content:
-        "Hey! I'm your Study Buddy. Tell me what you're working on — or what's stressing you out — and we'll break it down together.",
-    },
-  ]);
+  const append = useServerFn(appendChatMessages);
+  const loadHistory = useServerFn(listChatMessages);
+  const visitorId = useVisitorId();
+  const files = useAttachments();
+
+  const [messages, setMessages] = useState<Msg[]>([GREETING]);
+  const [restored, setRestored] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +60,28 @@ function ChatTool() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (!visitorId || restored) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await loadHistory({ data: { visitorId } });
+        if (cancelled) return;
+        const items = res.items as Array<{ role: "user" | "assistant"; content: string }>;
+        if (items.length) {
+          setMessages([GREETING, ...items.map((m) => ({ role: m.role, content: m.content }))]);
+        }
+      } catch {
+        /* history is a nice-to-have; the chat still works without it */
+      } finally {
+        if (!cancelled) setRestored(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visitorId, restored, loadHistory]);
 
   async function send(history: Msg[]) {
     setLoading(true);
@@ -62,6 +94,18 @@ function ChatTool() {
         },
       });
       setMessages([...history, { role: "assistant", content: res.text }]);
+      const lastUser = history[history.length - 1];
+      if (visitorId && lastUser?.role === "user") {
+        await append({
+          data: {
+            visitorId,
+            messages: [
+              { role: "user", content: lastUser.content },
+              { role: "assistant", content: res.text },
+            ],
+          },
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
@@ -70,11 +114,12 @@ function ChatTool() {
   }
 
   function submit() {
-    const text = input.trim();
+    const text = [input.trim(), files.combinedText].filter(Boolean).join("\n\n");
     if (!text || loading) return;
     const next: Msg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
+    files.clear();
     void send(next);
   }
 
@@ -130,17 +175,30 @@ function ChatTool() {
             placeholder="Ask anything — concepts, study tips, exam nerves..."
             className="max-h-32 min-h-11 resize-none"
           />
-          <Button type="submit" size="icon" disabled={loading || !input.trim()} aria-label="Send">
+          <Button
+            type="submit"
+            size="icon"
+            disabled={loading || (!input.trim() && !files.combinedText)}
+            aria-label="Send"
+          >
             <Send className="size-4" />
           </Button>
         </form>
       </div>
 
-      {error && (
-        <ErrorState
-          message={error}
-          onRetry={() => void send(messages.filter((_, i) => i < messages.length))}
+      <div className="mt-4 space-y-4 rounded-xl border border-border bg-card p-4">
+        <VoiceButton
+          label="Speak to your buddy"
+          onText={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
         />
+        <AttachmentField
+          state={files}
+          hint="Attach notes, a problem sheet or a photo to talk through. Max 10MB per file."
+        />
+      </div>
+
+      {error && (
+        <ErrorState message={error} onRetry={() => void send(messages)} />
       )}
 
       <Disclaimer>
