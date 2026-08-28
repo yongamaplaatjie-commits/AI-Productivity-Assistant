@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Microscope } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
@@ -8,9 +9,15 @@ import {
   EditableOutput,
   ErrorState,
   GenerateButton,
+  HistoryItem,
+  HistoryPanel,
   ToolHeader,
 } from "@/components/tool-page";
+import { AttachmentField, useAttachments } from "@/components/attachments";
+import { VoiceButton } from "@/components/voice-recorder";
 import { askAi } from "@/lib/ai.functions";
+import { listResearch, saveResearch } from "@/lib/db.functions";
+import { useVisitorId } from "@/lib/visitor";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -37,12 +44,26 @@ type Result = { summary: string; points: string[]; questions: string[] };
 
 function ResearchTool() {
   const ask = useServerFn(askAi);
+  const save = useServerFn(saveResearch);
+  const list = useServerFn(listResearch);
+  const visitorId = useVisitorId();
+  const queryClient = useQueryClient();
+  const files = useAttachments();
+
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [summary, setSummary] = useState("");
   const [points, setPoints] = useState<string[]>([]);
   const [questions, setQuestions] = useState<string[]>([]);
+
+  const combined = [topic.trim(), files.combinedText].filter(Boolean).join("\n\n");
+
+  const history = useQuery({
+    queryKey: ["research", visitorId],
+    queryFn: () => list({ data: { visitorId } }),
+    enabled: Boolean(visitorId),
+  });
 
   async function generate() {
     setLoading(true);
@@ -53,13 +74,28 @@ function ResearchTool() {
           json: true,
           system:
             'You help university students understand topics. You are a comprehension aid, never an assignment writer: explain and clarify, do not produce essay-ready prose the student could submit. Respond ONLY with JSON of the shape {"summary": string, "points": string[], "questions": string[]}. "summary" is a plain-language explanation, "points" are the key points, "questions" are 2-3 follow-up questions that push the student to think further.',
-          messages: [{ role: "user" as const, content: topic }],
+          messages: [{ role: "user" as const, content: combined }],
         },
       });
       const parsed = JSON.parse(res.text) as Result;
+      const nextPoints = Array.isArray(parsed.points) ? parsed.points : [];
+      const nextQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
       setSummary(parsed.summary ?? "");
-      setPoints(Array.isArray(parsed.points) ? parsed.points : []);
-      setQuestions(Array.isArray(parsed.questions) ? parsed.questions : []);
+      setPoints(nextPoints);
+      setQuestions(nextQuestions);
+      if (visitorId) {
+        await save({
+          data: {
+            visitorId,
+            topic: (topic.trim() || files.attachments[0]?.name || "Research topic").slice(0, 500),
+            summary: parsed.summary ?? "",
+            points: nextPoints,
+            questions: nextQuestions,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: ["research", visitorId] });
+        void queryClient.invalidateQueries({ queryKey: ["overview", visitorId] });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
@@ -86,14 +122,27 @@ function ResearchTool() {
           <Label htmlFor="topic">Topic, question or article text</Label>
           <Textarea
             id="topic"
-            required
             rows={10}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="Explain how confidence intervals work — or paste an article you're struggling with."
           />
+          <VoiceButton
+            label="Ask out loud"
+            onText={(t) => setTopic((prev) => (prev ? `${prev}\n${t}` : t))}
+          />
         </div>
-        <GenerateButton loading={loading} label="Help me understand" disabled={!topic.trim()} />
+
+        <AttachmentField
+          state={files}
+          hint="Attach an article, slide deck page or photo you want explained. Max 10MB per file."
+        />
+
+        <GenerateButton
+          loading={loading}
+          label="Help me understand"
+          disabled={!combined || files.extracting}
+        />
       </form>
 
       {error && <ErrorState message={error} onRetry={() => void generate()} />}
@@ -127,6 +176,31 @@ function ResearchTool() {
           </div>
         </div>
       )}
+
+      <HistoryPanel
+        title="Your research history"
+        loading={history.isLoading && Boolean(visitorId)}
+        isEmpty={!history.data?.items.length}
+        emptyTitle="Nothing researched yet"
+        emptyText="Anything you ask about is saved here so you can revisit the explanation later."
+      >
+        {history.data?.items.map((item) => (
+          <HistoryItem
+            key={item.id}
+            title={item.topic}
+            meta={new Date(item.created_at).toLocaleString()}
+            body={[
+              item.summary,
+              "",
+              "Key points:",
+              ...((item.points as string[]) ?? []).map((p) => `• ${p}`),
+              "",
+              "Follow-up questions:",
+              ...((item.questions as string[]) ?? []).map((q) => `? ${q}`),
+            ].join("\n")}
+          />
+        ))}
+      </HistoryPanel>
 
       <Disclaimer>
         This tool exists to help you understand material — not to generate assignment content.
