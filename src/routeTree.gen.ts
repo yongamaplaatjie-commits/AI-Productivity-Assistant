@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as EmailRouteImport } from './routes/email'
 import { Route as NotesRouteImport } from './routes/notes'
@@ -19,6 +20,11 @@ import { Route as ResearchRouteImport } from './routes/research'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -49,6 +55,7 @@ const ResearchRoute = ResearchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
   '/notes': typeof NotesRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
   '/notes': typeof NotesRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
   '/notes': typeof NotesRoute
@@ -74,15 +83,25 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/email' | '/notes' | '/planner' | '/research'
+  fullPaths:
+    '/' | '/calendar' | '/chat' | '/email' | '/notes' | '/planner' | '/research'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/email' | '/notes' | '/planner' | '/research'
+  to:
+    '/' | '/calendar' | '/chat' | '/email' | '/notes' | '/planner' | '/research'
   id:
-    '__root__' | '/' | '/chat' | '/email' | '/notes' | '/planner' | '/research'
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/chat'
+    | '/email'
+    | '/notes'
+    | '/planner'
+    | '/research'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalendarRoute: typeof CalendarRoute
   ChatRoute: typeof ChatRoute
   EmailRoute: typeof EmailRoute
   NotesRoute: typeof NotesRoute
@@ -97,6 +116,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -139,6 +165,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalendarRoute: CalendarRoute,
   ChatRoute: ChatRoute,
   EmailRoute: EmailRoute,
   NotesRoute: NotesRoute,

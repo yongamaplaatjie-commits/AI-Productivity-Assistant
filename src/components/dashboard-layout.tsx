@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import {
   BookOpenCheck,
   CalendarClock,
+  CalendarDays,
   GraduationCap,
   LayoutDashboard,
   Mail,
@@ -12,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ClearDataButton } from "@/components/clear-data-button";
 
 const nav = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
@@ -20,6 +22,7 @@ const nav = [
   { to: "/planner", label: "Study Planner", icon: CalendarClock },
   { to: "/research", label: "Research Assistant", icon: Microscope },
   { to: "/chat", label: "Study Buddy", icon: MessagesSquare },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays },
 ] as const;
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
@@ -76,6 +79,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        <div className="mb-3">
+          <ClearDataButton full />
+        </div>
 
         <p className="rounded-lg bg-sidebar-accent/60 p-3 text-xs leading-relaxed text-muted-foreground">
           JITA supports your learning. Always check your institution&apos;s academic integrity
